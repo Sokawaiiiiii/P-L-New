@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P&L Analyzer</title>
+    <title>Financial Analyzer</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN for graphical interpretation -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* Custom styles for Inter font and general body styling */
         body {
@@ -32,13 +34,18 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
+        /* Ensure canvas is responsive */
+        #marginsChart {
+            max-width: 100%;
+            height: auto; /* Maintain aspect ratio */
+        }
     </style>
 </head>
 <body class="selection:bg-blue-300 selection:text-blue-900">
-    <div class="max-w-3xl w-full bg-white p-8 rounded-xl shadow-2xl border border-blue-200">
+    <div class="max-w-4xl w-full bg-white p-8 rounded-xl shadow-2xl border border-blue-200">
         <h1 class="text-4xl font-extrabold text-gray-900 text-center mb-8">P&L Statement Analyzer</h1>
         <p class="text-lg text-gray-700 text-center mb-8">
-            Enter your P&L data points below to quickly calculate key profitability margins and get insights.
+            Enter your P&L data points below to quickly calculate key profitability margins, get detailed insights, and visualize your financial health.
         </p>
 
         <!-- Input Form -->
@@ -114,9 +121,9 @@
 
             <h3 class="text-xl font-bold text-gray-800 mb-3">Interpretation:</h3>
             <ul class="list-disc list-inside text-gray-700 space-y-2">
-                <li><strong class="text-green-700">Gross Profit Margin:</strong> Indicates how much profit you make from each sale after accounting for the direct costs of producing your goods or services. A higher margin suggests efficient production.</li>
-                <li><strong class="text-green-700">Operating Profit Margin:</strong> Shows the profitability of your core business operations before interest and taxes. It reflects how well your business is managed from an operational standpoint.</li>
-                <li><strong class="text-green-700">Net Profit Margin:</strong> Represents the percentage of revenue left after all expenses, including COGS, operating expenses, interest, and taxes, have been deducted. This is your "bottom line" profit.</li>
+                <li><strong class="text-green-700">Gross Profit Margin:</strong> This metric shows the percentage of revenue left after deducting the direct costs associated with producing your goods or services (Cost of Goods Sold). A higher Gross Profit Margin indicates efficient production and pricing strategies, meaning you're effectively covering your direct costs.</li>
+                <li><strong class="text-green-700">Operating Profit Margin:</strong> This percentage reveals the profitability of your core business operations before accounting for interest and taxes. It's a key indicator of how efficiently your business is managed and controlled in terms of operational expenses (like salaries, rent, marketing, etc.). A strong operating margin suggests healthy core business performance.</li>
+                <li><strong class="text-green-700">Net Profit Margin:</strong> This is your "bottom line" profit percentage. It represents the portion of revenue that remains after *all* expenses, including COGS, operating expenses, interest, and taxes, have been deducted. A robust Net Profit Margin signifies strong overall financial health and effective cost management across the entire business.</li>
             </ul>
 
             <div id="detailedAnalysis" class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -127,6 +134,12 @@
                 <p class="text-sm text-blue-600 mt-4 italic">
                     These insights are based on general industry benchmarks. Actual "good" or "bad" margins can vary significantly depending on your specific industry, business model, and growth stage. Always compare your figures to industry averages for a more accurate assessment.
                 </p>
+            </div>
+
+            <!-- Chart Section -->
+            <div class="mt-8 p-4 bg-white rounded-lg shadow-md border border-gray-200">
+                <h3 class="text-xl font-bold text-gray-800 mb-4 text-center">Profitability Margins Overview</h3>
+                <canvas id="marginsChart"></canvas>
             </div>
 
             <p class="text-sm text-gray-600 mt-4 italic">
@@ -165,6 +178,9 @@
         const messageBox = document.getElementById('messageBox');
         const messageText = document.getElementById('messageText');
         const messageBoxClose = document.getElementById('messageBoxClose');
+
+        // Chart.js instance
+        let marginsChart; // Declare chart variable globally
 
         /**
          * Displays a custom message box instead of alert().
@@ -213,34 +229,108 @@
             let analysis = `Your ${type} Profit Margin of ${formatPercentage(margin)} indicates: `;
             if (type === "Gross") {
                 if (margin >= 50) {
-                    analysis += `<span class="text-green-700 font-semibold">Excellent!</span> This suggests very strong control over your direct costs of goods sold.`;
+                    analysis += `<span class="text-green-700 font-semibold">Excellent!</span> This suggests very strong control over your direct costs of goods sold and effective pricing.`;
                 } else if (margin >= 20) {
-                    analysis += `<span class="text-yellow-700 font-semibold">Good.</span> Your direct costs are reasonably managed, but there might be room for improvement.`;
+                    analysis += `<span class="text-yellow-700 font-semibold">Good.</span> Your direct costs are reasonably managed, but continuous review of pricing and COGS can further enhance profitability.`;
                 } else {
-                    analysis += `<span class="text-red-700 font-semibold">Needs attention.</span> Your direct costs are high relative to your revenue. Consider reviewing pricing or COGS.`;
+                    analysis += `<span class="text-red-700 font-semibold">Needs attention.</span> Your direct costs are high relative to your revenue. This could point to issues with pricing, supplier costs, or production efficiency. Consider reviewing these areas.`;
                 }
             } else if (type === "Operating") {
                 if (margin >= 15) {
-                    analysis += `<span class="text-green-700 font-semibold">Strong operational efficiency.</span> Your core business is highly profitable before financial and tax considerations.`;
+                    analysis += `<span class="text-green-700 font-semibold">Strong operational efficiency.</span> Your core business is highly profitable before financial and tax considerations, indicating effective management of day-to-day expenses.`;
                 } else if (margin >= 5) {
-                    analysis += `<span class="text-yellow-700 font-semibold">Solid.</span> Your operational expenses are well-managed, but continued optimization can boost profitability.`;
+                    analysis += `<span class="text-yellow-700 font-semibold">Solid.</span> Your operational expenses are well-managed, but there's potential for further optimization to boost your core profitability.`;
                 } else if (margin >= 0) {
-                    analysis += `<span class="text-red-700 font-semibold">Tight.</span> Your operational expenses are consuming a significant portion of your gross profit. Look for areas to reduce overhead.`;
+                    analysis += `<span class="text-red-700 font-semibold">Tight.</span> Your operational expenses are consuming a significant portion of your gross profit. This suggests a need to scrutinize overheads and operational efficiency.`;
                 } else {
-                    analysis += `<span class="text-red-700 font-semibold">Negative.</span> Your core operations are currently losing money. Immediate review of expenses and pricing is crucial.`;
+                    analysis += `<span class="text-red-700 font-semibold">Negative.</span> Your core operations are currently losing money. Immediate and comprehensive review of all operational expenses and revenue streams is crucial.`;
                 }
             } else if (type === "Net") {
                 if (margin >= 10) {
-                    analysis += `<span class="text-green-700 font-semibold">Very healthy.</span> This indicates strong overall profitability after all expenses.`;
+                    analysis += `<span class="text-green-700 font-semibold">Very healthy.</span> This indicates strong overall profitability after all expenses, including interest and taxes. You're retaining a good portion of your revenue as profit.`;
                 } else if (margin >= 3) {
-                    analysis += `<span class="text-yellow-700 font-semibold">Reasonable.</span> Your business is profitable, but there might be opportunities to improve the bottom line further.`;
+                    analysis += `<span class="text-yellow-700 font-semibold">Reasonable.</span> Your business is profitable, but the final profit margin is moderate. There might be opportunities across all expense categories to improve the bottom line further.`;
                 } else if (margin >= 0) {
-                    analysis += `<span class="text-red-700 font-semibold">Slim.</span> Your final profit margin is very low. Every expense needs scrutiny to increase profitability.`;
+                    analysis += `<span class="text-red-700 font-semibold">Slim.</span> Your final profit margin is very low. Every expense, from COGS to taxes, needs scrutiny to increase profitability and ensure long-term sustainability.`;
                 } else {
-                    analysis += `<span class="text-red-700 font-semibold">Negative.</span> Your business is currently operating at a loss. A comprehensive review of all income and expenses is highly recommended.`;
+                    analysis += `<span class="text-red-700 font-semibold">Negative.</span> Your business is currently operating at a loss. A comprehensive review of all income and expenses is highly recommended to identify areas for cost reduction or revenue enhancement.`;
                 }
             }
             return analysis;
+        }
+
+        /**
+         * Initializes or updates the Chart.js graph.
+         * @param {number} grossMargin - Gross Profit Margin percentage.
+         * @param {number} operatingMargin - Operating Profit Margin percentage.
+         * @param {number} netMargin - Net Profit Margin percentage.
+         */
+        function updateChart(grossMargin, operatingMargin, netMargin) {
+            const ctx = document.getElementById('marginsChart').getContext('2d');
+
+            const data = {
+                labels: ['Gross Profit Margin', 'Operating Profit Margin', 'Net Profit Margin'],
+                datasets: [{
+                    label: 'Profit Margin (%)',
+                    data: [grossMargin, operatingMargin, netMargin],
+                    backgroundColor: [
+                        'rgba(75, 192, 192, 0.7)', // Greenish for Gross
+                        'rgba(54, 162, 235, 0.7)', // Bluish for Operating
+                        'rgba(153, 102, 255, 0.7)' // Purplish for Net
+                    ],
+                    borderColor: [
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(153, 102, 255, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            };
+
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false, // Allow canvas to resize freely
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Margin (%)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false // Hide vertical grid lines for cleaner look
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false // No need for legend as labels are clear
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%';
+                            }
+                        }
+                    }
+                }
+            };
+
+            if (marginsChart) {
+                // If chart already exists, update its data
+                marginsChart.data = data;
+                marginsChart.options = options; // Update options in case they changed
+                marginsChart.update();
+            } else {
+                // If chart doesn't exist, create a new one
+                marginsChart = new Chart(ctx, {
+                    type: 'bar', // Bar chart type
+                    data: data,
+                    options: options
+                });
+            }
         }
 
         /**
@@ -288,6 +378,8 @@
             operatingMarginAnalysisElem.innerHTML = getMarginAnalysis(operatingProfitMargin, "Operating");
             netMarginAnalysisElem.innerHTML = getMarginAnalysis(netProfitMargin, "Net");
 
+            // Update the chart with new data
+            updateChart(grossProfitMargin, operatingProfitMargin, netProfitMargin);
 
             resultsDiv.classList.remove('hidden'); // Show the results section
         });
@@ -298,6 +390,10 @@
         resetButton.addEventListener('click', () => {
             pnlForm.reset(); // Clear all form fields
             resultsDiv.classList.add('hidden'); // Hide the results section
+            if (marginsChart) {
+                marginsChart.destroy(); // Destroy the chart when resetting
+                marginsChart = null; // Clear the chart instance
+            }
             showMessageBox('Form has been reset.');
         });
     </script>
